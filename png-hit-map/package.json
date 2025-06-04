@@ -1,0 +1,48 @@
+{
+  "name": "png-hit-map",
+  "version": "1.0.0",
+  "description": "Efficient hit detection for transparent PNG images using compact binary hit maps",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "png",
+    "hitmap",
+    "hit-detection",
+    "transparency",
+    "image-processing",
+    "binary",
+    "rle",
+    "optimization"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Switch-Media/png-hit-map.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Switch-Media/png-hit-map/issues"
+  },
+  "homepage": "https://github.com/Switch-Media/png-hit-map#readme",
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^20.11.24",
+    "rollup": "^3.28.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  }
+}

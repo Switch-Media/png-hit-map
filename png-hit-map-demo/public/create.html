@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG Hit Map Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        h1 {
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        
+        .image-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        .stats {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .file-input {
+            margin: 20px 0;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            font-family: monospace;
+            margin-top: 10px;
+            padding: 10px;
+        }
+        
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        
+        .grid-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        .hex-view {
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .info-box {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .info-box.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .info-box.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+
+        .copy-button {
+            display: block;
+            margin: 10px 0;
+        }
+
+        .instructions {
+            background-color: #e9f7fe;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .npm-info {
+            margin-top: 20px;
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #d0e4ff;
+        }
+        
+        .npm-command {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            display: inline-block;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PNG Hit Map Creator</h1>
+        
+        <div class="section">
+            <h2>Upload Image</h2>
+            <div class="file-input">
+                <input type="file" id="imageInput" accept="image/png">
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="gridPercent">Grid Size: </label>
+                    <input type="number" id="gridPercent" min="0.1" max="10" step="0.1" value="1" style="width: 60px;">
+                    <span>% of image dimensions</span>
+                </div>
+                <div class="control-group">
+                    <label for="showGrid">
+                        <input type="checkbox" id="showGrid" checked>
+                        Show Grid
+                    </label>
+                </div>
+                <button id="generateBtn" disabled>Generate Hit Map</button>
+            </div>
+            <div class="image-preview">
+                <h3>Image Preview:</h3>
+                <div class="canvas-container">
+                    <div id="imageContainer" class="image-container">
+                        <!-- Image will be inserted here -->
+                    </div>
+                    <canvas id="gridCanvas" class="grid-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Generated Hit Map</h2>
+            <div id="hitMapResult" style="display: none;">
+                <div class="info-box success">
+                    <strong>Hit map generated successfully!</strong>
+                    <p>Copy the base64 string below for use in the verification page.</p>
+                </div>
+                <div>
+                    <h3>Hit Map Data:</h3>
+                    <textarea id="hitMapOutput" readonly></textarea>
+                    <button id="copyBtn" class="copy-button">Copy to Clipboard</button>
+                </div>
+                <div>
+                    <h3>Binary View:</h3>
+                    <div class="hex-view" id="hitMapHex"></div>
+                </div>
+                <div>
+                    <h3>Statistics:</h3>
+                    <div class="stats" id="hitMapStats"></div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2>Next Steps</h2>
+            <div class="instructions">
+                <p>After generating a hit map:</p>
+                <ol>
+                    <li>Copy the base64 string of the hit map</li>
+                    <li>Open the <a href="verify.html" target="_blank">Verification Page</a></li>
+                    <li>Paste the hit map data</li>
+                    <li>Provide the width and height of the original image</li>
+                    <li>Test hit detection by clicking on the visualization</li>
+                </ol>
+                <p>The verification page only receives the hit map data without any access to the original image, ensuring that hit detection works independently.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import from the npm package
+        import { createHitMap, visualTools } from '/dist/index.esm.js';
+        
+        // Enable visualization mode (used for the creation page only)
+        window._pngHitMapVisualization = true;
+        
+        let currentHitMap = null;
+        let currentImage = null;
+        
+        // DOM elements
+        const imageInput = document.getElementById('imageInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const gridPercentInput = document.getElementById('gridPercent');
+        const showGridCheckbox = document.getElementById('showGrid');
+        const imageContainer = document.getElementById('imageContainer');
+        const gridCanvas = document.getElementById('gridCanvas');
+        const hitMapOutput = document.getElementById('hitMapOutput');
+        const hitMapHex = document.getElementById('hitMapHex');
+        const hitMapStats = document.getElementById('hitMapStats');
+        const hitMapResult = document.getElementById('hitMapResult');
+        const copyBtn = document.getElementById('copyBtn');
+        
+        // Handle image selection
+        imageInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    
+                    img.onload = function() {
+                        // Store current image
+                        currentImage = img;
+                        
+                        // Clear previous content
+                        imageContainer.innerHTML = '';
+                        
+                        // Add the image to the container
+                        imageContainer.appendChild(img);
+                        
+                        // Resize canvas
+                        gridCanvas.width = img.width;
+                        gridCanvas.height = img.height;
+                        
+                        // Enable generate button
+                        generateBtn.disabled = false;
+                    };
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Toggle grid visibility
+        showGridCheckbox.addEventListener('change', function() {
+            if (currentHitMap && currentImage) {
+                updateGridVisualization();
+            }
+        });
+        
+        // Generate hit map
+        generateBtn.addEventListener('click', async function() {
+            if (!currentImage) {
+                alert('Please select an image first.');
+                return;
+            }
+            
+            const gridPercent = parseFloat(gridPercentInput.value) || 1;
+            
+            // Show loading state
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            hitMapResult.style.display = 'none';
+            
+            try {
+                // Generate hit map
+                currentHitMap = await createHitMap(currentImage, { 
+                    gridPercent: gridPercent,
+                    base64Output: true
+                });
+                
+                // Display the result
+                hitMapOutput.value = currentHitMap;
+                hitMapResult.style.display = 'block';
+                
+                // Display hex view
+                hitMapHex.textContent = visualTools.formatRLEHex(currentHitMap);
+                
+                // Update grid visualization
+                updateGridVisualization();
+                
+                // Calculate and display statistics
+                const stats = visualTools.analyzeRLEData(currentHitMap);
+                if (stats) {
+                    const { 
+                        totalCells, 
+                        theoreticalMinSize, 
+                        actualSize, 
+                        gridPercent, 
+                        startValue, 
+                        runCount, 
+                        maxRunLength, 
+                        compressionRatio, 
+                        efficiency 
+                    } = stats;
+                    
+                    hitMapStats.innerHTML = `
+                        <strong>Hit Map Statistics:</strong><br>
+                        Image Dimensions: ${currentImage.width}×${currentImage.height} pixels<br>
+                        Grid Size: ${gridPercent}% (${window._pngHitMapMetadata.gridSizeX}×${window._pngHitMapMetadata.gridSizeY} pixels per cell)<br>
+                        Grid Dimensions: ${window._pngHitMapMetadata.gridWidth}×${window._pngHitMapMetadata.gridHeight} cells (${totalCells} total cells)<br>
+                        Compression ratio: ${compressionRatio}:1<br>
+                        <br>
+                        Remember to copy the hit map data and the image dimensions (${currentImage.width}×${currentImage.height}) for the verification page.
+                    `;
+                }
+            } catch (error) {
+                hitMapOutput.value = `Error: ${error.message}`;
+                console.error(error);
+            } finally {
+                // Reset button state
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Hit Map';
+            }
+        });
+        
+        // Copy to clipboard button
+        copyBtn.addEventListener('click', function() {
+            hitMapOutput.select();
+            document.execCommand('copy');
+            
+            // Show feedback
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        });
+        
+        // Update grid visualization
+        async function updateGridVisualization() {
+            if (!currentHitMap || !currentImage) return;
+            
+            const imageInfo = {
+                width: currentImage.width,
+                height: currentImage.height
+            };
+            
+            if (showGridCheckbox.checked) {
+                visualTools.visualizeGrid(gridCanvas, currentHitMap, imageInfo, {
+                    gridColor: 'rgba(255, 0, 0, 0.5)',
+                    fillColor: 'rgba(0, 255, 0, 0.2)',
+                    showGrid: true
+                });
+            } else {
+                const ctx = gridCanvas.getContext('2d');
+                ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+                
+                visualTools.visualizeGrid(gridCanvas, currentHitMap, imageInfo, {
+                    fillColor: 'rgba(0, 255, 0, 0.2)',
+                    showGrid: false
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

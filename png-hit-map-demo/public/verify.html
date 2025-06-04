@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG Hit Map Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        h1 {
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        
+        .test-area {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            cursor: crosshair;
+        }
+        
+        .test-canvas {
+            display: block;
+        }
+        
+        .overlay-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 100px;
+            font-family: monospace;
+            margin: 10px 0;
+            padding: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .hit {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .miss {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        
+        .info-box {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            background-color: #e9f7fe;
+            border-left: 4px solid #3498db;
+        }
+        
+        .clicks-list {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .click-item {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .click-item.hit {
+            color: #155724;
+        }
+        
+        .click-item.miss {
+            color: #721c24;
+        }
+        
+        .file-input {
+            margin: 15px 0;
+        }
+        
+        .image-display {
+            position: relative;
+            margin: 15px 0;
+        }
+        
+        .actual-image {
+            max-width: 100%;
+            display: block;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+            background-color: white;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .npm-info {
+            margin-top: 20px;
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #d0e4ff;
+        }
+        
+        .npm-command {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            display: inline-block;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PNG Hit Map Verification</h1>
+        
+        <div class="section">
+            <h2>Hit Map Data</h2>
+            <div class="form-group">
+                <label for="hitMapData">Paste Hit Map Data (base64):</label>
+                <textarea id="hitMapData" placeholder="Paste the hit map base64 string here..."></textarea>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" id="dimensionsTab">Manual Dimensions</div>
+                <div class="tab" id="imageTab">Upload Image</div>
+            </div>
+            
+            <div class="tab-content active" id="dimensionsContent">
+                <div class="form-group">
+                    <label for="imageWidth">Original Image Width (pixels):</label>
+                    <input type="number" id="imageWidth" min="1" placeholder="e.g., 800">
+                </div>
+                
+                <div class="form-group">
+                    <label for="imageHeight">Original Image Height (pixels):</label>
+                    <input type="number" id="imageHeight" min="1" placeholder="e.g., 600">
+                </div>
+            </div>
+            
+            <div class="tab-content" id="imageContent">
+                <div class="form-group">
+                    <label for="imageInput">Upload Original PNG Image:</label>
+                    <div class="file-input">
+                        <input type="file" id="imageInput" accept="image/png">
+                    </div>
+                    <p class="info">Note: The image is only used for visualization and is not required for hit detection.</p>
+                </div>
+            </div>
+            
+            <button id="setupBtn">Set Up Test Area</button>
+        </div>
+        
+        <div id="testSection" class="section" style="display: none;">
+            <h2>Test Hit Detection</h2>
+            <p>Click anywhere in the area below to test if that point hits a non-transparent part:</p>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="showGrid" checked>
+                    Show Grid
+                </label>
+                <label style="margin-left: 15px;">
+                    <input type="checkbox" id="showOverlay" checked>
+                    Show Hit Areas
+                </label>
+                <button id="debugBtn" style="margin-left: 15px;">Debug Hit Map</button>
+            </div>
+            
+            <div id="testAreaContainer">
+                <div id="testArea" class="test-area">
+                    <canvas id="testCanvas" class="test-canvas"></canvas>
+                    <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="result" id="hitResult" style="display: none;"></div>
+            
+            <div>
+                <h3>Current Position:</h3>
+                <div id="positionInfo"></div>
+            </div>
+            
+            <div class="clicks-list" id="clicksList">
+                <h3>Test Results:</h3>
+                <!-- Click results will be added here -->
+            </div>
+        </div>
+                
+    </div>
+
+    <script type="module">
+        // Import from the npm package
+        import { testHit } from '/dist/index.esm.js';
+        
+        // Explicitly set to false to prevent any shared metadata
+        window._pngHitMapVisualization = false;
+        
+        let currentHitMap = null;
+        let imageInfo = null;
+        let loadedImage = null;
+        
+        // DOM elements
+        const hitMapDataInput = document.getElementById('hitMapData');
+        const imageWidthInput = document.getElementById('imageWidth');
+        const imageHeightInput = document.getElementById('imageHeight');
+        const imageInput = document.getElementById('imageInput');
+        const setupBtn = document.getElementById('setupBtn');
+        const testSection = document.getElementById('testSection');
+        const testArea = document.getElementById('testArea');
+        const testCanvas = document.getElementById('testCanvas');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const showGridCheckbox = document.getElementById('showGrid');
+        const showOverlayCheckbox = document.getElementById('showOverlay');
+        const debugBtn = document.getElementById('debugBtn');
+        const hitResult = document.getElementById('hitResult');
+        const positionInfo = document.getElementById('positionInfo');
+        const clicksList = document.getElementById('clicksList');
+        
+        // Tabs
+        const dimensionsTab = document.getElementById('dimensionsTab');
+        const imageTab = document.getElementById('imageTab');
+        const dimensionsContent = document.getElementById('dimensionsContent');
+        const imageContent = document.getElementById('imageContent');
+        
+        // Set up tab navigation
+        dimensionsTab.addEventListener('click', function() {
+            dimensionsTab.classList.add('active');
+            imageTab.classList.remove('active');
+            dimensionsContent.classList.add('active');
+            imageContent.classList.remove('active');
+        });
+        
+        imageTab.addEventListener('click', function() {
+            imageTab.classList.add('active');
+            dimensionsTab.classList.remove('active');
+            imageContent.classList.add('active');
+            dimensionsContent.classList.remove('active');
+        });
+        
+        // Handle image upload
+        imageInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    loadedImage = new Image();
+                    loadedImage.src = event.target.result;
+                    
+                    loadedImage.onload = function() {
+                        // Auto-fill width and height fields
+                        imageWidthInput.value = loadedImage.width;
+                        imageHeightInput.value = loadedImage.height;
+                    };
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Set up test area
+        setupBtn.addEventListener('click', function() {
+            const hitMapData = hitMapDataInput.value.trim();
+            
+            if (!hitMapData) {
+                alert('Please paste hit map data.');
+                return;
+            }
+            
+            // Get dimensions from either input fields or loaded image
+            let width, height;
+            
+            if (loadedImage && imageTab.classList.contains('active')) {
+                width = loadedImage.width;
+                height = loadedImage.height;
+            } else {
+                width = parseInt(imageWidthInput.value);
+                height = parseInt(imageHeightInput.value);
+                
+                if (isNaN(width) || width <= 0 || isNaN(height) || height <= 0) {
+                    alert('Please enter valid image dimensions.');
+                    return;
+                }
+            }
+            
+            // Store hit map and image info
+            currentHitMap = hitMapData;
+            imageInfo = { width, height };
+            
+            // Set up canvas dimensions
+            const maxWidth = 700;
+            const maxHeight = 500;
+            
+            let canvasWidth, canvasHeight;
+            const aspectRatio = width / height;
+            
+            if (width > maxWidth || height > maxHeight) {
+                if (aspectRatio > maxWidth / maxHeight) {
+                    canvasWidth = maxWidth;
+                    canvasHeight = Math.round(maxWidth / aspectRatio);
+                } else {
+                    canvasHeight = maxHeight;
+                    canvasWidth = Math.round(maxHeight * aspectRatio);
+                }
+            } else {
+                canvasWidth = width;
+                canvasHeight = height;
+            }
+            
+            testCanvas.width = canvasWidth;
+            testCanvas.height = canvasHeight;
+            overlayCanvas.width = canvasWidth;
+            overlayCanvas.height = canvasHeight;
+            
+            // Draw the loaded image if available
+            if (loadedImage) {
+                const ctx = testCanvas.getContext('2d');
+                ctx.clearRect(0, 0, testCanvas.width, testCanvas.height);
+                ctx.drawImage(loadedImage, 0, 0, canvasWidth, canvasHeight);
+            } else {
+                // Fill with a light background if no image
+                const ctx = testCanvas.getContext('2d');
+                ctx.fillStyle = '#f9f9f9';
+                ctx.fillRect(0, 0, testCanvas.width, testCanvas.height);
+            }
+            
+            // Show test section
+            testSection.style.display = 'block';
+            
+            // Draw grid visualization
+            updateVisualization();
+            
+            // Set up click detection
+            setupClickDetection();
+            
+            // Clear previous results
+            hitResult.style.display = 'none';
+            clicksList.innerHTML = '<h3>Test Results:</h3>';
+            
+            // Scroll to test section
+            testSection.scrollIntoView({ behavior: 'smooth' });
+        });
+        
+        // Toggle grid/overlay visibility
+        showGridCheckbox.addEventListener('change', updateVisualization);
+        showOverlayCheckbox.addEventListener('change', updateVisualization);
+        
+        // Debug button to show hit map info
+        debugBtn.addEventListener('click', function() {
+            if (!currentHitMap || !imageInfo) {
+                alert('No hit map data available');
+                return;
+            }
+            
+            try {
+                // Decode hit map
+                let buffer;
+                if (typeof currentHitMap === 'string') {
+                    const binaryString = atob(currentHitMap);
+                    buffer = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        buffer[i] = binaryString.charCodeAt(i);
+                    }
+                } else {
+                    buffer = new Uint8Array(currentHitMap);
+                }
+                
+                // Get basic info
+                const gridPercent = buffer[0];
+                const startValue = buffer[1];
+                
+                // Calculate grid dimensions
+                const gridSizeX = Math.max(1, Math.floor((gridPercent / 100) * imageInfo.width));
+                const gridSizeY = Math.max(1, Math.floor((gridPercent / 100) * imageInfo.height));
+                const gridWidth = Math.ceil(imageInfo.width / gridSizeX);
+                const gridHeight = Math.ceil(imageInfo.height / gridSizeY);
+                
+                // Count runs
+                let runCount = 0;
+                let offset = 2; // Start after grid percentage and start value
+                
+                while (offset < buffer.length) {
+                    runCount++;
+                    if (buffer[offset] === 0xFF) {
+                        offset += 5; // Long run (marker + 4 bytes)
+                    } else {
+                        offset += 1; // Short run
+                    }
+                }
+                
+                const debugInfo = `
+                    Hit Map Debug Info:
+                    -------------------
+                    Buffer Length: ${buffer.length} bytes
+                    Grid Percent: ${gridPercent}%
+                    Start Value: ${startValue}
+                    Grid Size: ${gridSizeX}×${gridSizeY} pixels per cell
+                    Grid Dimensions: ${gridWidth}×${gridHeight} cells
+                    Total Cells: ${gridWidth * gridHeight}
+                    Run Count: ${runCount}
+                    Image Dimensions: ${imageInfo.width}×${imageInfo.height}
+                    Canvas Dimensions: ${testCanvas.width}×${testCanvas.height}
+                `;
+                
+                alert(debugInfo);
+                console.log(debugInfo);
+                
+                // Log first 20 bytes for inspection
+                let byteLog = 'First 20 bytes:\n';
+                for (let i = 0; i < Math.min(20, buffer.length); i++) {
+                    byteLog += `Byte ${i}: ${buffer[i]} (${buffer[i].toString(16)})\n`;
+                }
+                console.log(byteLog);
+                
+            } catch (error) {
+                console.error('Error debugging hit map:', error);
+                alert('Error debugging hit map: ' + error.message);
+            }
+        });
+        
+        // Update visualization
+        async function updateVisualization() {
+            if (!currentHitMap || !imageInfo) return;
+            
+            // Clear overlay canvas
+            const overlayCtx = overlayCanvas.getContext('2d');
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            try {
+                // Use the direct visualization approach that relies on testHit
+                const { visualTools } = await import('/dist/index.esm.js');
+                
+                visualTools.visualizeGridDirect(overlayCanvas, currentHitMap, imageInfo, {
+                    fillColor: showOverlayCheckbox.checked ? 'rgba(0, 255, 0, 0.4)' : null,
+                    gridColor: 'rgba(0, 0, 0, 0.3)',
+                    showGrid: showGridCheckbox.checked
+                });
+            } catch (error) {
+                console.error('Error in visualization:', error);
+                // Show error message on canvas
+                overlayCtx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                overlayCtx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+                overlayCtx.fillStyle = 'black';
+                overlayCtx.font = '14px Arial';
+                overlayCtx.textAlign = 'center';
+                overlayCtx.fillText('Error visualizing hit map: ' + error.message, 
+                    overlayCanvas.width / 2, overlayCanvas.height / 2);
+            }
+        }
+        
+        // Set up click detection
+        function setupClickDetection() {
+            testArea.onclick = function(e) {
+                if (!currentHitMap || !imageInfo) return;
+                
+                const rect = testCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Calculate percentage coordinates relative to canvas
+                const percentX = (x / testCanvas.width) * 100;
+                const percentY = (y / testCanvas.height) * 100;
+                
+                // Display current position
+                positionInfo.textContent = `X: ${percentX.toFixed(2)}%, Y: ${percentY.toFixed(2)}%`;
+                
+                // Test hit detection
+                const isHit = testHit(currentHitMap, percentX, percentY, imageInfo);
+                
+                // Show result
+                hitResult.textContent = isHit ? 'HIT: Clicked on non-transparent part!' : 'MISS: Clicked on transparent part.';
+                hitResult.className = isHit ? 'result hit' : 'result miss';
+                hitResult.style.display = 'block';
+                
+                // Add to clicks list
+                const clickItem = document.createElement('div');
+                clickItem.className = isHit ? 'click-item hit' : 'click-item miss';
+                clickItem.textContent = `${isHit ? '✓ HIT' : '✗ MISS'} at ${percentX.toFixed(2)}%, ${percentY.toFixed(2)}%`;
+                
+                // Add to the top of the list
+                if (clicksList.childElementCount > 1) {
+                    clicksList.insertBefore(clickItem, clicksList.children[1]);
+                } else {
+                    clicksList.appendChild(clickItem);
+                }
+                
+                // Add visual marker
+                addDot(x, y, isHit);
+            };
+        }
+        
+        // Add visual dot marker
+        function addDot(x, y, isHit) {
+            const dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.style.left = `${x}px`;
+            dot.style.top = `${y}px`;
+            dot.style.backgroundColor = isHit ? 'red' : 'blue';
+            
+            testArea.appendChild(dot);
+            
+            // Remove older dots if there are too many
+            const dots = testArea.querySelectorAll('.dot');
+            if (dots.length > 10) {
+                testArea.removeChild(dots[0]);
+            }
+        }
+    </script>
+</body>
+</html> 
