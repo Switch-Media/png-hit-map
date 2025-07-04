@@ -18,57 +18,73 @@ export interface ImageInfo {
  * Environment detection to handle browser/node differences
  */
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+const isNode = typeof process !== "undefined" && !!process.versions && !!process.versions.node;
 
 /**
  * Creates a hit map from a PNG image by analyzing non-transparent pixels
  * and converting them to a compressed binary representation using RLE
  */
+
 export async function createHitMap(
-  image: HTMLImageElement | string,
+  image: HTMLImageElement | string | Buffer,
   options: HitMapOptions = {}
 ): Promise<ArrayBuffer | string> {
-  // Ensure we're in a browser environment for image processing
-  if (!isBrowser) {
-    throw new Error('createHitMap requires a browser environment with Canvas support');
-  }
-
   const gridPercent = options.gridPercent || 1;
   const base64Output = options.base64Output !== false;
-  
-  // Load image if URL is provided
-  let imgElement: HTMLImageElement = image as HTMLImageElement;
-  if (typeof image === 'string') {
-    imgElement = await loadImage(image);
+
+  let width: number;
+  let height: number;
+  let data: Uint8Array;
+
+  if (isBrowser) {
+    let imgElement: HTMLImageElement = image as HTMLImageElement;
+    if (typeof image === 'string') {
+      imgElement = await loadImage(image);
+    }
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get canvas context');
+    }
+
+    canvas.width = imgElement.width;
+    canvas.height = imgElement.height;
+    ctx.drawImage(imgElement, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    data = new Uint8Array(imageData.data.buffer);
+    width = canvas.width;
+    height = canvas.height;
+  } else if (isNode) {
+    const { PNG } = await import('pngjs');
+    const fs = await import('fs');
+    let buffer: Buffer;
+    if (typeof image === 'string') {
+      buffer = await fs.promises.readFile(image);
+    } else if (image instanceof Uint8Array || Buffer.isBuffer(image)) {
+      buffer = Buffer.from(image as any);
+    } else {
+      throw new Error('Image must be a file path or Buffer in Node.js');
+    }
+    const png = PNG.sync.read(buffer);
+    width = png.width;
+    height = png.height;
+    data = png.data;
+  } else {
+    throw new Error('Unsupported environment for createHitMap');
   }
-  
-  // Create canvas and draw image
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Failed to get canvas context');
-  }
-  
-  canvas.width = imgElement.width;
-  canvas.height = imgElement.height;
-  ctx.drawImage(imgElement, 0, 0);
-  
-  // Get image data
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  
-  // Calculate grid dimensions based on percentage
-  const gridSizeX = Math.max(1, Math.floor((gridPercent / 100) * canvas.width));
-  const gridSizeY = Math.max(1, Math.floor((gridPercent / 100) * canvas.height));
-  const gridWidth = Math.ceil(canvas.width / gridSizeX);
-  const gridHeight = Math.ceil(canvas.height / gridSizeY);
+
+  const gridSizeX = Math.max(1, Math.floor((gridPercent / 100) * width));
+  const gridSizeY = Math.max(1, Math.floor((gridPercent / 100) * height));
+  const gridWidth = Math.ceil(width / gridSizeX);
+  const gridHeight = Math.ceil(height / gridSizeY);
   const grid = new Uint8Array(gridWidth * gridHeight);
-  
-  // Process pixels and mark grid cells
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      const index = (y * canvas.width + x) * 4;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
       const alpha = data[index + 3];
-      
+
       if (alpha > 0) {
         const gridX = Math.floor(x / gridSizeX);
         const gridY = Math.floor(y / gridSizeY);
@@ -76,30 +92,26 @@ export async function createHitMap(
       }
     }
   }
-  
-  // Store metadata for visualization tools (only if enabled and in browser)
+
   if (isBrowser && (window as any)._pngHitMapVisualization) {
     (window as any)._pngHitMapMetadata = {
-      width: canvas.width,
-      height: canvas.height,
-      gridSizeX: gridSizeX,
-      gridSizeY: gridSizeY,
-      gridWidth: gridWidth,
-      gridHeight: gridHeight
+      width,
+      height,
+      gridSizeX,
+      gridSizeY,
+      gridWidth,
+      gridHeight
     };
   }
-  
-  // Compress the grid using RLE and output as binary
+
   const binaryData = compressGridRLEBinary(grid, gridPercent);
-  
-  // Return as base64 or binary
+
   if (base64Output) {
     return arrayBufferToBase64(binaryData);
   } else {
     return binaryData;
   }
 }
-
 /**
  * Compress grid data using run-length encoding and output as binary data
  */
