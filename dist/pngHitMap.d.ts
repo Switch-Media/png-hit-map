@@ -14,7 +14,7 @@ export interface ImageInfo {
  * Creates a hit map from a PNG image by analyzing non-transparent pixels
  * and converting them to a compressed binary representation using RLE
  */
-export declare function createHitMap(image: HTMLImageElement | string, options?: HitMapOptions): Promise<ArrayBuffer | string>;
+export declare function createHitMap(image: HTMLImageElement | string | Buffer, options?: HitMapOptions): Promise<ArrayBuffer | string>;
 /**
  * Tests if a point hits a non-transparent part of the image
  */

@@ -95,8 +95,8 @@ The library works in all modern browsers that support:
 
 ## Node.js Usage
 
-While the primary use case is in browsers, the `testHit` function can be used in Node.js environments. The `createHitMap` function requires a browser environment with Canvas support.
+Both `createHitMap` and `testHit` work in Node.js. When running on the server `createHitMap` accepts a path to a PNG file or a `Buffer` and uses the `pngjs` library to parse the image.
 
 ## License
 
-MIT License 
+MIT License
