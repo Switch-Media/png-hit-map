@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG Hit Map Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .test-canvas {
+            border: 2px solid #333;
+            margin: 10px 0;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .info {
+            color: #17a2b8;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .hit-result {
+            padding: 5px 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .hit-true {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .hit-false {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+        }
+        
+        .grid-info {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .file-input {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PNG Hit Map Library Test</h1>
+        <p>This page tests the PNG Hit Map library functionality in the browser.</p>
+        
+        <!-- Test 1: Basic functionality with canvas-drawn image -->
+        <div class="test-section">
+            <h2>Test 1: Canvas-drawn Shape</h2>
+            <div class="controls">
+                <button id="createShape">Create Test Shape</button>
+                <button id="generateHitMap" disabled>Generate Hit Map</button>
+                <label>
+                    Grid %: <input type="range" id="gridPercent" min="0.5" max="10" value="2" step="0.5">
+                    <span id="gridValue">2</span>%
+                </label>
+            </div>
+            <canvas id="testCanvas" width="300" height="200" class="test-canvas"></canvas>
+            <div id="status1" class="status"></div>
+            <div id="hitResults1"></div>
+        </div>
+        
+        <!-- Test 2: File upload test -->
+        <div class="test-section">
+            <h2>Test 2: PNG File Upload</h2>
+            <div class="controls">
+                <input type="file" id="fileInput" accept="image/png" class="file-input">
+                <button id="processFile" disabled>Process File</button>
+            </div>
+            <canvas id="fileCanvas" width="300" height="200" class="test-canvas"></canvas>
+            <div id="status2" class="status"></div>
+            <div id="hitResults2"></div>
+        </div>
+        
+        <!-- Test 3: URL-based image -->
+        <div class="test-section">
+            <h2>Test 3: Image from URL</h2>
+            <div class="controls">
+                <input type="url" id="urlInput" placeholder="Enter PNG image URL" style="width: 300px;">
+                <button id="loadUrl">Load Image</button>
+            </div>
+            <canvas id="urlCanvas" width="300" height="200" class="test-canvas"></canvas>
+            <div id="status3" class="status"></div>
+            <div id="hitResults3"></div>
+        </div>
+        
+        <!-- Performance Test -->
+        <div class="test-section">
+            <h2>Performance Test</h2>
+            <div class="controls">
+                <button id="perfTest">Run Performance Test</button>
+            </div>
+            <div id="perfResults"></div>
+        </div>
+    </div>
+
+    <!-- Load the library -->
+    <script src="dist/index.js"></script>
+    <!-- Fallback for development -->
+    <script>
+        if (typeof PngHitMap === 'undefined') {
+            document.body.innerHTML = '<div class="container"><h1>Error</h1><p>Please build the library first: <code>npm run build</code></p></div>';
+        }
+    </script>
+    
+    <script>
+        // Test state
+        let currentHitMap = null;
+        let currentImageInfo = null;
+        
+        // Utility functions
+        function updateStatus(elementId, message, className = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${className}`;
+        }
+        
+        function addHitResult(containerId, x, y, isHit) {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `hit-result ${isHit ? 'hit-true' : 'hit-false'}`;
+            result.textContent = `Hit test at (${x.toFixed(1)}%, ${y.toFixed(1)}%): ${isHit ? 'HIT' : 'MISS'}`;
+            container.appendChild(result);
+            
+            // Keep only last 5 results
+            while (container.children.length > 5) {
+                container.removeChild(container.firstChild);
+            }
+        }
+        
+        function setupCanvasClickHandler(canvasId, resultContainerId) {
+            const canvas = document.getElementById(canvasId);
+            canvas.addEventListener('click', (e) => {
+                if (!currentHitMap || !currentImageInfo) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / canvas.width) * 100;
+                const y = ((e.clientY - rect.top) / canvas.height) * 100;
+                
+                try {
+                    const isHit = PngHitMap.testHit(currentHitMap, x, y, currentImageInfo);
+                    addHitResult(resultContainerId, x, y, isHit);
+                } catch (error) {
+                    console.error('Hit test error:', error);
+                }
+            });
+        }
+        
+        // Test 1: Canvas-drawn shape
+        document.getElementById('createShape').addEventListener('click', () => {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw a complex shape
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(50, 50, 100, 80);
+            
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(200, 100, 40, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'green';
+            ctx.beginPath();
+            ctx.moveTo(100, 150);
+            ctx.lineTo(150, 180);
+            ctx.lineTo(50, 180);
+            ctx.closePath();
+            ctx.fill();
+            
+            updateStatus('status1', 'Test shape created. Click "Generate Hit Map" to proceed.');
+            document.getElementById('generateHitMap').disabled = false;
+        });
+        
+        document.getElementById('generateHitMap').addEventListener('click', async () => {
+            const canvas = document.getElementById('testCanvas');
+            const gridPercent = parseFloat(document.getElementById('gridPercent').value);
+            
+            updateStatus('status1', 'Generating hit map...');
+            
+            try {
+                const imageData = canvas.toDataURL('image/png');
+                const img = new Image();
+                img.onload = async () => {
+                    try {
+                        const hitMap = await PngHitMap.createHitMap(img, { gridPercent });
+                        currentHitMap = hitMap;
+                        currentImageInfo = { width: img.width, height: img.height };
+                        
+                        updateStatus('status1', `Hit map generated! Grid: ${gridPercent}%. Click on the canvas to test hit detection.`, 'success');
+                        document.getElementById('hitResults1').innerHTML = '';
+                    } catch (error) {
+                        updateStatus('status1', `Error: ${error.message}`, 'error');
+                    }
+                };
+                img.src = imageData;
+            } catch (error) {
+                updateStatus('status1', `Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Grid percentage slider
+        document.getElementById('gridPercent').addEventListener('input', (e) => {
+            document.getElementById('gridValue').textContent = e.target.value;
+        });
+        
+        // Test 2: File upload
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('processFile').disabled = false;
+                updateStatus('status2', `File selected: ${file.name}`);
+            }
+        });
+        
+        document.getElementById('processFile').addEventListener('click', async () => {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+            
+            updateStatus('status2', 'Processing file...');
+            
+            try {
+                const img = new Image();
+                img.onload = async () => {
+                    try {
+                        // Draw to canvas for display
+                        const canvas = document.getElementById('fileCanvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = Math.min(img.width, 300);
+                        canvas.height = Math.min(img.height, 200);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Generate hit map
+                        const hitMap = await PngHitMap.createHitMap(img, { gridPercent: 2 });
+                        currentHitMap = hitMap;
+                        currentImageInfo = { width: img.width, height: img.height };
+                        
+                        updateStatus('status2', `File processed successfully! Click on the canvas to test hit detection.`, 'success');
+                        document.getElementById('hitResults2').innerHTML = '';
+                    } catch (error) {
+                        updateStatus('status2', `Error: ${error.message}`, 'error');
+                    }
+                };
+                img.src = URL.createObjectURL(file);
+            } catch (error) {
+                updateStatus('status2', `Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test 3: URL-based image
+        document.getElementById('loadUrl').addEventListener('click', async () => {
+            const url = document.getElementById('urlInput').value;
+            if (!url) return;
+            
+            updateStatus('status3', 'Loading image from URL...');
+            
+            try {
+                const hitMap = await PngHitMap.createHitMap(url, { gridPercent: 2 });
+                
+                // Also load for display
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const canvas = document.getElementById('urlCanvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = Math.min(img.width, 300);
+                    canvas.height = Math.min(img.height, 200);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    currentHitMap = hitMap;
+                    currentImageInfo = { width: img.width, height: img.height };
+                    
+                    updateStatus('status3', `Image loaded successfully! Click on the canvas to test hit detection.`, 'success');
+                    document.getElementById('hitResults3').innerHTML = '';
+                };
+                img.onerror = () => {
+                    updateStatus('status3', 'Failed to load image for display (CORS issue?)', 'error');
+                };
+                img.src = url;
+                
+            } catch (error) {
+                updateStatus('status3', `Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Performance test
+        document.getElementById('perfTest').addEventListener('click', async () => {
+            const container = document.getElementById('perfResults');
+            container.innerHTML = '<p>Running performance test...</p>';
+            
+            try {
+                // Create a test image
+                const canvas = document.createElement('canvas');
+                canvas.width = 500;
+                canvas.height = 400;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw complex pattern
+                for (let i = 0; i < 20; i++) {
+                    ctx.fillStyle = `hsl(${i * 18}, 70%, 50%)`;
+                    ctx.fillRect(i * 20, i * 15, 30, 30);
+                }
+                
+                const img = new Image();
+                img.src = canvas.toDataURL('image/png');
+                
+                img.onload = async () => {
+                    const startTime = performance.now();
+                    
+                    // Test different grid percentages
+                    const results = [];
+                    for (const gridPercent of [0.5, 1, 2, 5, 10]) {
+                        const testStart = performance.now();
+                        const hitMap = await PngHitMap.createHitMap(img, { gridPercent });
+                        const testEnd = performance.now();
+                        
+                        // Test hit detection speed
+                        const hitStart = performance.now();
+                        for (let i = 0; i < 1000; i++) {
+                            PngHitMap.testHit(hitMap, Math.random() * 100, Math.random() * 100, 
+                                           { width: img.width, height: img.height });
+                        }
+                        const hitEnd = performance.now();
+                        
+                        results.push({
+                            gridPercent,
+                            createTime: testEnd - testStart,
+                            hitTime: hitEnd - hitStart,
+                            hitMapSize: typeof hitMap === 'string' ? hitMap.length : hitMap.byteLength
+                        });
+                    }
+                    
+                    const totalTime = performance.now() - startTime;
+                    
+                    let html = `<h3>Performance Results (Total: ${totalTime.toFixed(2)}ms)</h3>`;
+                    html += '<table border="1" style="border-collapse: collapse; width: 100%;">';
+                    html += '<tr><th>Grid %</th><th>Create Time (ms)</th><th>1000 Hit Tests (ms)</th><th>Hit Map Size (bytes)</th></tr>';
+                    
+                    results.forEach(r => {
+                        html += `<tr>
+                            <td>${r.gridPercent}%</td>
+                            <td>${r.createTime.toFixed(2)}</td>
+                            <td>${r.hitTime.toFixed(2)}</td>
+                            <td>${r.hitMapSize}</td>
+                        </tr>`;
+                    });
+                    
+                    html += '</table>';
+                    container.innerHTML = html;
+                };
+                
+            } catch (error) {
+                container.innerHTML = `<p class="error">Performance test failed: ${error.message}</p>`;
+            }
+        });
+        
+        // Set up click handlers for all canvases
+        setupCanvasClickHandler('testCanvas', 'hitResults1');
+        setupCanvasClickHandler('fileCanvas', 'hitResults2');
+        setupCanvasClickHandler('urlCanvas', 'hitResults3');
+        
+        // Initialize
+        updateStatus('status1', 'Ready. Click "Create Test Shape" to begin.');
+        updateStatus('status2', 'Ready. Select a PNG file to upload.');
+        updateStatus('status3', 'Ready. Enter a PNG image URL.');
+    </script>
+</body>
+</html>
