@@ -4,8 +4,8 @@
  */
 
 // Import core functionality
-import { createHitMap, testHit } from './pngHitMap';
-import * as visualTools from './pngHitMapVisuals';
+import { createHitMap, testHit } from "./pngHitMap";
+import * as visualTools from "./pngHitMapVisuals";
 
 // Re-export as named exports
 export { createHitMap, testHit };
@@ -16,5 +16,5 @@ export { visualTools };
 // Default export with main functions
 export default {
   createHitMap,
-  testHit
-}; 
+  testHit,
+};
