@@ -15,6 +15,7 @@
   "scripts": {
     "build": "rollup -c",
     "test": "mocha",
+    "check": "npx @biomejs/biome check src test web-demo --write",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -52,6 +53,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@types/pngjs": "^6.0.5",
     "pngjs": "^7.0.0"
   }
 }
