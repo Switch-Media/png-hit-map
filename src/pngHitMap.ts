@@ -17,8 +17,12 @@ export interface ImageInfo {
 /**
  * Environment detection to handle browser/node differences
  */
-const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-const isNode = typeof process !== "undefined" && !!process.versions && !!process.versions.node;
+const isBrowser =
+  typeof window !== "undefined" && typeof document !== "undefined";
+const isNode =
+  typeof process !== "undefined" &&
+  !!process.versions &&
+  !!process.versions.node;
 
 /**
  * Creates a hit map from a PNG image by analyzing non-transparent pixels
@@ -27,7 +31,7 @@ const isNode = typeof process !== "undefined" && !!process.versions && !!process
 
 export async function createHitMap(
   image: HTMLImageElement | string | Buffer,
-  options: HitMapOptions = {}
+  options: HitMapOptions = {},
 ): Promise<ArrayBuffer | string> {
   const gridPercent = options.gridPercent || 1;
   const base64Output = options.base64Output !== false;
@@ -38,13 +42,13 @@ export async function createHitMap(
 
   if (isBrowser) {
     let imgElement: HTMLImageElement = image as HTMLImageElement;
-    if (typeof image === 'string') {
+    if (typeof image === "string") {
       imgElement = await loadImage(image);
     }
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
-      throw new Error('Failed to get canvas context');
+      throw new Error("Failed to get canvas context");
     }
 
     canvas.width = imgElement.width;
@@ -56,22 +60,22 @@ export async function createHitMap(
     width = canvas.width;
     height = canvas.height;
   } else if (isNode) {
-    const { PNG } = await import('pngjs');
-    const fs = await import('fs');
+    const { PNG } = await import("pngjs");
+    const fs = await import("fs");
     let buffer: Buffer;
-    if (typeof image === 'string') {
+    if (typeof image === "string") {
       buffer = await fs.promises.readFile(image);
     } else if (image instanceof Uint8Array || Buffer.isBuffer(image)) {
       buffer = Buffer.from(image as any);
     } else {
-      throw new Error('Image must be a file path or Buffer in Node.js');
+      throw new Error("Image must be a file path or Buffer in Node.js");
     }
     const png = PNG.sync.read(buffer);
     width = png.width;
     height = png.height;
     data = png.data;
   } else {
-    throw new Error('Unsupported environment for createHitMap');
+    throw new Error("Unsupported environment for createHitMap");
   }
 
   const gridSizeX = Math.max(1, Math.floor((gridPercent / 100) * width));
@@ -100,7 +104,7 @@ export async function createHitMap(
       gridSizeX,
       gridSizeY,
       gridWidth,
-      gridHeight
+      gridHeight,
     };
   }
 
@@ -115,12 +119,15 @@ export async function createHitMap(
 /**
  * Compress grid data using run-length encoding and output as binary data
  */
-function compressGridRLEBinary(grid: Uint8Array, gridPercent: number): ArrayBuffer {
+function compressGridRLEBinary(
+  grid: Uint8Array,
+  gridPercent: number,
+): ArrayBuffer {
   // Analyze the grid to determine run lengths
   const runLengths: number[] = [];
   let currentValue = grid[0]; // Start with the first value
   let currentRunLength = 1;
-  
+
   // Process the entire grid as a 1D array
   for (let i = 1; i < grid.length; i++) {
     if (grid[i] === currentValue) {
@@ -133,31 +140,31 @@ function compressGridRLEBinary(grid: Uint8Array, gridPercent: number): ArrayBuff
       currentRunLength = 1;
     }
   }
-  
+
   // Add the last run
   runLengths.push(currentRunLength);
-  
+
   // Create binary data
-  // Format: 
+  // Format:
   // - Byte 0: Grid percentage (0-100)
   // - Byte 1: Starting value (0 or 1)
   // - Remaining bytes: Run lengths (variable encoding)
-  
+
   // Calculate the required buffer size
   let bufferSize = 2; // First byte for grid percentage, second for starting value
   for (const length of runLengths) {
     bufferSize += length < 255 ? 1 : 5; // 1 byte or 5 bytes
   }
-  
+
   const buffer = new ArrayBuffer(bufferSize);
   const view = new DataView(buffer);
-  
+
   // Write grid percentage
   view.setUint8(0, Math.round(gridPercent));
-  
+
   // Write starting value
   view.setUint8(1, grid[0]);
-  
+
   // Write run lengths
   let offset = 2;
   for (const length of runLengths) {
@@ -165,13 +172,13 @@ function compressGridRLEBinary(grid: Uint8Array, gridPercent: number): ArrayBuff
       view.setUint8(offset, length);
       offset += 1;
     } else {
-      view.setUint8(offset, 0xFF); // Marker for long run
+      view.setUint8(offset, 0xff); // Marker for long run
       offset += 1;
       view.setUint32(offset, length, true); // Little endian
       offset += 4;
     }
   }
-  
+
   return buffer;
 }
 
@@ -181,14 +188,14 @@ function compressGridRLEBinary(grid: Uint8Array, gridPercent: number): ArrayBuff
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   if (isBrowser) {
     const bytes = new Uint8Array(buffer);
-    let binary = '';
+    let binary = "";
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
     return btoa(binary);
   } else {
     // Node.js environment
-    return Buffer.from(buffer).toString('base64');
+    return Buffer.from(buffer).toString("base64");
   }
 }
 
@@ -205,7 +212,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
     return bytes.buffer;
   } else {
     // Node.js environment
-    return Buffer.from(base64, 'base64').buffer;
+    return Buffer.from(base64, "base64").buffer;
   }
 }
 
@@ -214,9 +221,9 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
  */
 function loadImage(url: string): Promise<HTMLImageElement> {
   if (!isBrowser) {
-    throw new Error('Image loading requires a browser environment');
+    throw new Error("Image loading requires a browser environment");
   }
-  
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -232,45 +239,47 @@ export function testHit(
   hitMapData: string | ArrayBuffer,
   x: number,
   y: number,
-  imageInfo: ImageInfo
+  imageInfo: ImageInfo,
 ): boolean {
   if (!imageInfo || !imageInfo.width || !imageInfo.height) {
-    throw new Error('Image dimensions are required for hit detection. Please provide imageInfo parameter with width and height.');
+    throw new Error(
+      "Image dimensions are required for hit detection. Please provide imageInfo parameter with width and height.",
+    );
   }
 
   // Convert from base64 if needed
   let buffer: ArrayBuffer;
-  if (typeof hitMapData === 'string') {
+  if (typeof hitMapData === "string") {
     buffer = base64ToArrayBuffer(hitMapData);
   } else {
     buffer = hitMapData;
   }
-  
+
   const view = new DataView(buffer);
-  
+
   // Get grid percentage from the first byte
   const gridPercent = view.getUint8(0);
-  
+
   const width = imageInfo.width;
   const height = imageInfo.height;
-  
+
   // Calculate grid dimensions based on percentage
   const gridSizeX = Math.max(1, Math.floor((gridPercent / 100) * width));
   const gridSizeY = Math.max(1, Math.floor((gridPercent / 100) * height));
   const gridWidth = Math.ceil(width / gridSizeX);
   const gridHeight = Math.ceil(height / gridSizeY);
-  
+
   // Convert percentage to actual coordinates
   const pixelX = Math.floor((x / 100) * width);
   const pixelY = Math.floor((y / 100) * height);
-  
+
   // Convert to grid coordinates
   const gridX = Math.floor(pixelX / gridSizeX);
   const gridY = Math.floor(pixelY / gridSizeY);
-  
+
   // Calculate grid index
   const gridIndex = gridY * gridWidth + gridX;
-  
+
   // Test the hit using RLE binary data
   return testHitRLEBinary(buffer, gridIndex);
 }
@@ -284,24 +293,24 @@ function testHitRLEBinary(buffer: ArrayBuffer, gridIndex: number): boolean {
   let currentValue = startingValue;
   let currentIndex = 0;
   let offset = 2;
-  
+
   while (currentIndex <= gridIndex) {
     let runLength = view.getUint8(offset);
     offset += 1;
-    
-    if (runLength === 0xFF) {
+
+    if (runLength === 0xff) {
       // Long run
       runLength = view.getUint32(offset, true);
       offset += 4;
     }
-    
+
     if (currentIndex + runLength > gridIndex) {
       return currentValue === 1;
     }
-    
+
     currentIndex += runLength;
     currentValue = currentValue === 0 ? 1 : 0;
   }
-  
+
   return false;
-} 
+}
